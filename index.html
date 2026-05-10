@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>InstaScan — Instagram Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:     #06080d;
+      --s1:     #0d1117;
+      --s2:     #111820;
+      --border: rgba(99,202,183,0.15);
+      --cyan:   #63cab7;
+      --pink:   #f06292;
+      --gold:   #ffd166;
+      --green:  #56cf8e;
+      --red:    #ff6b6b;
+      --text:   #e8f4f1;
+      --muted:  rgba(232,244,241,0.35);
+      --mono:   'Space Mono', monospace;
+      --sans:   'Syne', sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Noise texture overlay ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      background-size: 180px;
+      opacity: 0.5;
+    }
+
+    /* ── Gradient orbs ── */
+    .orb {
+      position: fixed; border-radius: 50%; filter: blur(90px); pointer-events: none; z-index: 0;
+    }
+    .orb-1 { width: 500px; height: 500px; background: radial-gradient(circle, rgba(99,202,183,0.07) 0%, transparent 70%); top: -150px; left: -100px; }
+    .orb-2 { width: 400px; height: 400px; background: radial-gradient(circle, rgba(240,98,146,0.06) 0%, transparent 70%); bottom: -100px; right: -80px; }
+    .orb-3 { width: 300px; height: 300px; background: radial-gradient(circle, rgba(255,209,102,0.04) 0%, transparent 70%); top: 50%; left: 50%; transform: translate(-50%,-50%); }
+
+    /* ── Layout ── */
+    .wrapper { position: relative; z-index: 1; max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+
+    /* ── Header ── */
+    .header { text-align: center; margin-bottom: 52px; }
+    .header-badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: rgba(99,202,183,0.08); border: 1px solid var(--border);
+      border-radius: 100px; padding: 5px 14px; margin-bottom: 20px;
+      font-family: var(--mono); font-size: 11px; color: var(--cyan); letter-spacing: 1px;
+    }
+    .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s ease infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.85)} }
+    .header h1 {
+      font-family: var(--sans); font-weight: 900; font-size: clamp(42px, 10vw, 80px);
+      letter-spacing: -2px; line-height: 1; margin-bottom: 8px;
+    }
+    .h1-line1 { color: var(--text); display: block; }
+    .h1-line2 {
+      display: block;
+      background: linear-gradient(90deg, var(--cyan), var(--pink));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .header p { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 10px; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--s1);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      backdrop-filter: blur(8px);
+      transition: border-color .3s, box-shadow .3s;
+      animation: fadeUp .5s ease both;
+    }
+    .card:hover { border-color: rgba(99,202,183,0.3); box-shadow: 0 8px 32px rgba(99,202,183,0.06); }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ── Search ── */
+    .search-wrap { margin-bottom: 28px; }
+    .search-inner {
+      display: flex; align-items: center; gap: 14px;
+      background: var(--s1); border: 1px solid var(--border);
+      border-radius: 16px; padding: 14px 18px;
+      transition: border-color .3s, box-shadow .3s;
+    }
+    .search-inner:focus-within {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(99,202,183,0.1), 0 0 30px rgba(99,202,183,0.08);
+    }
+    .at-sign { font-family: var(--mono); font-size: 20px; color: var(--cyan); flex-shrink: 0; }
+    .search-inner input {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: var(--text); font-family: var(--mono); font-size: 16px;
+      caret-color: var(--cyan);
+    }
+    .search-inner input::placeholder { color: rgba(232,244,241,0.2); }
+    .btn-scan {
+      background: linear-gradient(135deg, var(--cyan), #3ab5a0);
+      border: none; border-radius: 10px; padding: 11px 22px;
+      color: #06080d; font-family: var(--sans); font-weight: 800;
+      font-size: 13px; letter-spacing: .5px; cursor: pointer;
+      white-space: nowrap; transition: transform .2s, box-shadow .2s;
+      box-shadow: 0 0 20px rgba(99,202,183,0.25);
+    }
+    .btn-scan:hover:not(:disabled) { transform: scale(1.04); box-shadow: 0 0 32px rgba(99,202,183,0.4); }
+    .btn-scan:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .backend-hint {
+      margin-top: 10px; display: flex; align-items: center; gap: 7px;
+      font-family: var(--mono); font-size: 10px; color: rgba(232,244,241,.2); letter-spacing: .5px;
+      padding: 0 4px;
+    }
+
+    /* ── Error ── */
+    .error-box {
+      background: rgba(255,107,107,0.07); border: 1px solid rgba(255,107,107,0.25);
+      border-radius: 14px; padding: 16px 18px; margin-bottom: 20px;
+      font-family: var(--mono); font-size: 12px; color: #ff9e9e;
+      animation: fadeUp .3s ease;
+    }
+    .error-box .fix { margin-top: 8px; color: var(--muted); font-size: 11px; }
+    .error-box code { color: var(--cyan); background: rgba(99,202,183,0.1); padding: 2px 6px; border-radius: 4px; }
+
+    /* ── Loader ── */
+    .loader-wrap { text-align: center; padding: 60px 20px; animation: fadeUp .3s ease; }
+    .spinner { position: relative; width: 64px; height: 64px; margin: 0 auto 20px; }
+    .spin-ring {
+      position: absolute; inset: 0; border-radius: 50%;
+      border: 2px solid transparent; animation: spin 1s linear infinite;
+    }
+    .spin-ring:nth-child(1) { border-top-color: var(--cyan); }
+    .spin-ring:nth-child(2) { inset: 12px; border-top-color: var(--pink); animation-direction: reverse; animation-duration: .7s; }
+    .spin-ring:nth-child(3) { inset: 22px; border-top-color: var(--gold); animation-duration: .5s; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .loader-text { font-family: var(--mono); font-size: 12px; color: var(--cyan); letter-spacing: 2px; }
+    .loader-sub { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 6px; }
+
+    /* ── Profile strip ── */
+    .profile-strip {
+      display: flex; align-items: center; gap: 20px;
+      flex-wrap: wrap; margin-bottom: 16px;
+    }
+    .avatar-ring {
+      width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0;
+      padding: 2px;
+      background: linear-gradient(135deg, var(--cyan), var(--pink));
+      position: relative;
+    }
+    .avatar-ring img { width: 100%; height: 100%; border-radius: 50%; display: block; object-fit: cover; }
+    .verified-badge {
+      position: absolute; bottom: 0; right: 0;
+      background: #1da1f2; border-radius: 50%; width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; color: #fff;
+    }
+    .profile-info { flex: 1; min-width: 140px; }
+    .profile-name { font-size: 20px; font-weight: 800; color: var(--text); }
+    .profile-handle { font-family: var(--mono); font-size: 12px; color: var(--cyan); margin-top: 2px; }
+    .profile-bio { font-size: 12px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
+    .quality-tag {
+      display: inline-block; padding: 3px 10px; border-radius: 6px;
+      font-family: var(--mono); font-size: 10px; letter-spacing: 1px; margin-top: 6px;
+    }
+    .quality-good  { background: rgba(86,207,142,0.12); color: var(--green); border: 1px solid rgba(86,207,142,0.25); }
+    .quality-warn  { background: rgba(255,209,102,0.1);  color: var(--gold);  border: 1px solid rgba(255,209,102,0.25); }
+    .quality-bad   { background: rgba(255,107,107,0.1);  color: var(--red);   border: 1px solid rgba(255,107,107,0.25); }
+
+    /* ── Score ring SVG ── */
+    .score-wrap { text-align: center; flex-shrink: 0; }
+    .score-label { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 1.5px; margin-top: 4px; text-transform: uppercase; }
+
+    /* ── Stats grid ── */
+    .stats-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 16px; }
+    .stat-card { background: var(--s2); border: 1px solid var(--border); border-radius: 14px; padding: 16px; text-align: center; }
+    .stat-icon { font-size: 22px; margin-bottom: 6px; }
+    .stat-val { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--cyan); }
+    .stat-name { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 3px; }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tab {
+      font-family: var(--mono); font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+      padding: 7px 16px; border-radius: 8px; cursor: pointer;
+      background: transparent; border: 1px solid rgba(99,202,183,0.15); color: var(--muted);
+      transition: all .2s;
+    }
+    .tab:hover { border-color: rgba(99,202,183,0.35); color: var(--cyan); }
+    .tab.active { background: rgba(99,202,183,0.1); border-color: var(--cyan); color: var(--cyan); }
+
+    /* ── Follower bar ── */
+    .seg-bar { display: flex; border-radius: 6px; overflow: hidden; height: 10px; margin-bottom: 18px; gap: 2px; }
+    .seg-bar span { display: block; border-radius: 4px; transition: width 1s ease; }
+
+    .breakdown-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .brow-label { flex: 1; font-size: 13px; color: rgba(232,244,241,.65); }
+    .brow-count { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+    .brow-bar-wrap { width: 90px; height: 4px; background: rgba(255,255,255,.05); border-radius: 4px; overflow: hidden; }
+    .brow-bar { height: 100%; border-radius: 4px; }
+    .brow-pct { font-family: var(--mono); font-size: 13px; font-weight: 700; width: 38px; text-align: right; }
+
+    /* ── Suspicious block ── */
+    .susp-block { display: flex; align-items: center; gap: 20px; }
+    .susp-num { font-family: var(--mono); font-size: 56px; font-weight: 700; line-height: 1; }
+    .susp-bar-outer { flex: 1; height: 6px; background: rgba(255,255,255,.05); border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+    .susp-bar-inner { height: 100%; border-radius: 4px; }
+    .susp-msg { font-size: 12px; color: var(--muted); }
+
+    /* ── Engagement grid ── */
+    .eng-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .eng-card { background: var(--s2); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+    .eng-icon { font-size: 22px; margin-bottom: 6px; }
+    .eng-val { font-family: var(--mono); font-size: 26px; font-weight: 700; }
+    .eng-name { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+
+    /* ── Bar chart ── */
+    .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 70px; }
+    .bar-col { flex: 1; display: flex; align-items: flex-end; }
+    .bar-col-inner { width: 100%; border-radius: 3px 3px 0 0; transition: height .8s ease; }
+
+    /* ── Verdict ── */
+    .verdict-hero {
+      border-radius: 16px; padding: 28px; text-align: center; margin-bottom: 14px;
+      animation: fadeUp .4s ease;
+    }
+    .verdict-label { font-size: 22px; font-weight: 800; letter-spacing: 2px; margin-top: 12px; }
+    .verdict-sub { font-size: 12px; color: var(--muted); max-width: 360px; margin: 8px auto 0; line-height: 1.6; }
+
+    .check-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+    .check-row:last-child { border-bottom: none; }
+    .check-label { flex: 1; font-size: 13px; color: rgba(232,244,241,.65); }
+    .check-val { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+    .check-status { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+
+    /* ── Section label ── */
+    .section-label { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--cyan); text-transform: uppercase; margin-bottom: 16px; opacity: .7; }
+
+    /* ── Empty state ── */
+    .empty { text-align: center; padding: 56px 20px; color: var(--muted); animation: fadeUp .5s ease; }
+    .empty-icon { font-size: 56px; margin-bottom: 16px; }
+    .empty-text { font-size: 15px; letter-spacing: .5px; }
+    .empty-sub { font-family: var(--mono); font-size: 11px; margin-top: 8px; color: rgba(232,244,241,.15); }
+
+    /* ── Footer ── */
+    footer { text-align: center; margin-top: 60px; font-family: var(--mono); font-size: 10px; color: rgba(232,244,241,.15); letter-spacing: 2px; }
+
+    /* ── Gap utility ── */
+    .gap14 { margin-bottom: 14px; }
+  </style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div class="wrapper" id="app"></div>
+
+<script>
+// ─── Helpers ───────────────────────────────────────────────────────────────
+const fmt = n => {
+  if (!n) return "0";
+  if (n >= 1e9) return (n/1e9).toFixed(1)+"B";
+  if (n >= 1e6) return (n/1e6).toFixed(1)+"M";
+  if (n >= 1e3) return (n/1e3).toFixed(1)+"K";
+  return String(n);
+};
+
+const scoreColor = s => s >= 70 ? "var(--green)" : s >= 40 ? "var(--gold)" : "var(--red)";
+const qualityClass = s => s >= 70 ? "quality-good" : s >= 40 ? "quality-warn" : "quality-bad";
+
+const trendLabel = t => ({
+  growing: "📈 Growing",
+  stable:  "➡️ Stable",
+  bought:  "🚨 Bought Followers",
+  declining: "📉 Declining"
+})[t] || "➡️ Stable";
+
+function scoreRingHTML(score, size) {
+  const s = size || 80, r = s/2-7;
+  const circ = 2*Math.PI*r;
+  const dash = (score/100)*circ;
+  const col  = scoreColor(score);
+  return `<svg width="${s}" height="${s}">
+    <circle cx="${s/2}" cy="${s/2}" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="5"/>
+    <circle cx="${s/2}" cy="${s/2}" r="${r}" fill="none" stroke="${col}" stroke-width="5"
+      stroke-dasharray="${dash} ${circ-dash}" stroke-linecap="round"
+      stroke-dashoffset="${circ/4}"
+      style="filter:drop-shadow(0 0 6px ${col});transition:stroke-dasharray 1s ease"/>
+    <text x="${s/2}" y="${s/2+6}" text-anchor="middle" fill="${col}"
+      font-size="${s*0.2}" font-weight="800" font-family="'Space Mono',monospace">${score}</text>
+  </svg>`;
+}
+
+function barChartHTML(data) {
+  if (!data || !data.length) return "";
+  const max = Math.max(...data);
+  const bars = data.map((v, i) => {
+    const h = Math.max(4, Math.round((v/max)*62));
+    const isLast = i === data.length - 1;
+    const bg = isLast
+      ? "linear-gradient(180deg,var(--cyan),#3ab5a0)"
+      : "rgba(99,202,183,0.2)";
+    const shadow = isLast ? "box-shadow:0 0 10px rgba(99,202,183,0.4)" : "";
+    return `<div class="bar-col">
+      <div class="bar-col-inner" style="height:${h}px;background:${bg};${shadow}"></div>
+    </div>`;
+  }).join("");
+  return `<div class="bar-chart">${bars}</div>
+  <div style="display:flex;justify-content:space-between;margin-top:6px">
+    <span style="font-family:var(--mono);font-size:9px;color:var(--muted)">oldest</span>
+    <span style="font-family:var(--mono);font-size:9px;color:var(--cyan)">latest ▲</span>
+  </div>`;
+}
+
+// ─── State ─────────────────────────────────────────────────────────────────
+let state = { username: "", loading: false, data: null, error: "", activeTab: "overview" };
+
+function setState(updates) {
+  state = { ...state, ...updates };
+  render();
+}
+
+// ─── API Call ───────────────────────────────────────────────────────────────
+async function analyze() {
+  const u = state.username.trim();
+  if (!u) return;
+  setState({ loading: true, error: "", data: null, activeTab: "overview" });
+  try {
+    const res  = await fetch("http://localhost:5000/analyze/" + u.toLowerCase());
+    const json = await res.json();
+    if (json.error) setState({ error: "❌ " + json.error, loading: false });
+    else            setState({ data: json, loading: false });
+  } catch (e) {
+    setState({ loading: false, error: "❌ Backend se connect nahi hua. Python server chal raha hai?" });
+  }
+}
+
+// ─── Render ─────────────────────────────────────────────────────────────────
+function render() {
+  const { username, loading, data, error, activeTab } = state;
+
+  let resultsHTML = "";
+
+  if (loading) {
+    resultsHTML = `
+      <div class="loader-wrap">
+        <div class="spinner">
+          <div class="spin-ring"></div>
+          <div class="spin-ring"></div>
+          <div class="spin-ring"></div>
+        </div>
+        <div class="loader-text">SCANNING @${username}</div>
+        <div class="loader-sub">Real Instagram data fetch ho raha hai — 30-60 sec lag sakte hain</div>
+      </div>`;
+  } else if (error) {
+    resultsHTML = `
+      <div class="error-box">
+        ${error}
+        <div class="fix">💡 Fix: Terminal mein <code>python app.py</code> chalaao phir retry karo.</div>
+      </div>`;
+  } else if (data) {
+    const d = data;
+    const sc = d.credibility_score || 0;
+    const col = scoreColor(sc);
+
+    // profile
+    const profileHTML = `
+      <div class="card gap14">
+        <div class="profile-strip">
+          <div class="avatar-ring" style="position:relative">
+            <img src="${d.profile_pic || `https://ui-avatars.com/api/?name=${d.username}&background=111820&color=63cab7&size=72`}"
+              alt="pfp" onerror="this.src='https://ui-avatars.com/api/?name=${d.username}&background=111820&color=63cab7&size=72'"/>
+            ${d.is_verified ? '<div class="verified-badge">✓</div>' : ""}
+          </div>
+          <div class="profile-info">
+            <div class="profile-name">${d.full_name || d.username}</div>
+            <div class="profile-handle">@${d.username}</div>
+            ${d.bio ? `<div class="profile-bio">${d.bio.slice(0,65)}${d.bio.length>65?"…":""}</div>` : ""}
+            <span class="quality-tag ${qualityClass(sc)}">${d.account_quality} — ${trendLabel(d.growth_trend)}</span>
+          </div>
+          <div class="score-wrap">
+            ${scoreRingHTML(sc, 76)}
+            <div class="score-label">Credibility</div>
+          </div>
+        </div>
+      </div>`;
+
+    // stats
+    const statsHTML = `
+      <div class="stats-grid">
+        <div class="stat-card" style="animation-delay:.05s">
+          <div class="stat-icon">👥</div>
+          <div class="stat-val">${fmt(d.followers)}</div>
+          <div class="stat-name">Followers</div>
+        </div>
+        <div class="stat-card" style="animation-delay:.1s">
+          <div class="stat-icon">➡️</div>
+          <div class="stat-val">${fmt(d.following)}</div>
+          <div class="stat-name">Following</div>
+        </div>
+        <div class="stat-card" style="animation-delay:.15s">
+          <div class="stat-icon">📸</div>
+          <div class="stat-val">${fmt(d.posts)}</div>
+          <div class="stat-name">Posts</div>
+        </div>
+      </div>`;
+
+    // tabs
+    const tabs = ["overview", "engagement", "verdict"];
+    const tabsHTML = `
+      <div class="tabs">
+        ${tabs.map(t => `<button class="tab${activeTab===t?" active":""}" onclick="setTab('${t}')">${t}</button>`).join("")}
+      </div>`;
+
+    // tab content
+    let tabContent = "";
+
+    if (activeTab === "overview") {
+      tabContent = `
+        <div class="card gap14">
+          <div class="section-label">Follower Breakdown</div>
+          <div class="seg-bar">
+            <span style="width:${d.real_followers_pct}%;background:linear-gradient(90deg,var(--green),#3ab878)"></span>
+            <span style="width:${d.ghost_followers_pct}%;background:rgba(255,209,102,0.75)"></span>
+            <span style="width:${d.bot_followers_pct}%;background:linear-gradient(90deg,var(--red),#c0392b)"></span>
+          </div>
+          ${[
+            { label:"Real Followers",  pct: d.real_followers_pct||0,  col:"var(--green)", count: Math.floor((d.followers||0)*(d.real_followers_pct||0)/100) },
+            { label:"Ghost Followers", pct: d.ghost_followers_pct||0, col:"var(--gold)",  count: Math.floor((d.followers||0)*(d.ghost_followers_pct||0)/100) },
+            { label:"Bot Followers",   pct: d.bot_followers_pct||0,   col:"var(--red)",   count: Math.floor((d.followers||0)*(d.bot_followers_pct||0)/100) },
+          ].map(row => `
+            <div class="breakdown-row">
+              <div class="dot" style="background:${row.col};box-shadow:0 0 5px ${row.col}"></div>
+              <div class="brow-label">${row.label}</div>
+              <div class="brow-count">${fmt(row.count)}</div>
+              <div class="brow-bar-wrap"><div class="brow-bar" style="width:${row.pct}%;background:${row.col}"></div></div>
+              <div class="brow-pct" style="color:${row.col}">${row.pct}%</div>
+            </div>`).join("")}
+        </div>
+        <div class="card" style="border-color:${(d.suspicious_pct||0)>25?"rgba(255,107,107,0.3)":"rgba(99,202,183,0.15)"}">
+          <div class="section-label">Suspicious Activity</div>
+          <div class="susp-block">
+            <div class="susp-num" style="color:${(d.suspicious_pct||0)>25?"var(--red)":"var(--gold)"}">${d.suspicious_pct||0}%</div>
+            <div style="flex:1">
+              <div class="susp-bar-outer">
+                <div class="susp-bar-inner" style="width:${d.suspicious_pct||0}%;background:${(d.suspicious_pct||0)>25?"linear-gradient(90deg,var(--red),#ff6d00)":"var(--gold)"}"></div>
+              </div>
+              <div class="susp-msg">
+                ${(d.suspicious_pct||0)>35 ? "⚠️ HIGH RISK — Likely purchased followers"
+                  : (d.suspicious_pct||0)>20 ? "⚡ MODERATE — Kuch suspicious patterns hain"
+                  : "✅ LOW — Account genuine lagta hai"}
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    if (activeTab === "engagement") {
+      tabContent = `
+        <div class="eng-grid">
+          ${[
+            { icon:"💡", val:(d.engagement_rate||0)+"%", name:"Engagement Rate", good:(d.engagement_rate||0)>=3 },
+            { icon:"❤️",  val:fmt(d.avg_likes||0),       name:"Avg Likes",       good:true },
+            { icon:"💬", val:fmt(d.avg_comments||0),     name:"Avg Comments",    good:true },
+            { icon:"📅", val:String(d.posts_per_week||0),name:"Posts / Week",    good:(d.posts_per_week||0)>=2 },
+          ].map(e => `
+            <div class="eng-card">
+              <div class="eng-icon">${e.icon}</div>
+              <div class="eng-val" style="color:${e.good?"var(--cyan)":"var(--gold)"}">${e.val}</div>
+              <div class="eng-name">${e.name}</div>
+            </div>`).join("")}
+        </div>
+        ${d.last_posts_likes && d.last_posts_likes.length ? `
+          <div class="card">
+            <div class="section-label">Last ${d.last_posts_likes.length} Posts — Likes Trend</div>
+            ${barChartHTML(d.last_posts_likes)}
+          </div>` : ""}`;
+    }
+
+    if (activeTab === "verdict") {
+      const vgood = sc>=70, vbad = sc<40;
+      tabContent = `
+        <div class="verdict-hero" style="background:${vgood?"rgba(86,207,142,0.07)":vbad?"rgba(255,107,107,0.07)":"rgba(255,209,102,0.07)"};border:1px solid ${col}22">
+          ${scoreRingHTML(sc, 90)}
+          <div class="verdict-label" style="color:${col}">
+            ${vgood ? "✅ GENUINE ACCOUNT" : vbad ? "🚨 SUSPICIOUS ACCOUNT" : "⚡ MIXED SIGNALS"}
+          </div>
+          <div class="verdict-sub">
+            ${vgood ? "Strong authenticity indicators. Followers genuine hain."
+              : vbad ? "High bot/ghost ratio detected. Is account ne followers kharide hain."
+              : "Mixed signals. Kuch followers bots ya ghosts ho sakte hain."}
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-label">Detailed Checks</div>
+          ${[
+            { label:"Follower Quality",  st:(d.real_followers_pct||0)>=60?"good":(d.real_followers_pct||0)>=40?"warn":"bad", info:(d.real_followers_pct||0)+"% real" },
+            { label:"Engagement Health",st:(d.engagement_rate||0)>=3?"good":(d.engagement_rate||0)>=1?"warn":"bad",         info:(d.engagement_rate||0)+"% rate" },
+            { label:"Bot Detection",    st:(d.bot_followers_pct||0)<=10?"good":(d.bot_followers_pct||0)<=25?"warn":"bad",    info:(d.bot_followers_pct||0)+"% bots" },
+            { label:"Growth Pattern",   st:d.growth_trend==="growing"?"good":d.growth_trend==="bought"?"bad":"warn",         info:trendLabel(d.growth_trend) },
+          ].map(c => {
+            const cc = c.st==="good"?"var(--green)":c.st==="warn"?"var(--gold)":"var(--red)";
+            const lbl = c.st==="good"?"✓ PASS":c.st==="warn"?"⚡ WARN":"✗ FAIL";
+            return `<div class="check-row">
+              <div class="dot" style="background:${cc};box-shadow:0 0 5px ${cc}"></div>
+              <div class="check-label">${c.label}</div>
+              <div class="check-val">${c.info}</div>
+              <div class="check-status" style="color:${cc}">${lbl}</div>
+            </div>`;
+          }).join("")}
+        </div>`;
+    }
+
+    resultsHTML = profileHTML + statsHTML + tabsHTML + tabContent + `
+      <div style="margin-top:14px;text-align:center;font-family:var(--mono);font-size:9px;color:rgba(232,244,241,.12);letter-spacing:1px">
+        LIVE MODE — Real Instagram data via instagrapi
+      </div>`;
+
+  } else {
+    resultsHTML = `
+      <div class="empty">
+        <div class="empty-icon">🔍</div>
+        <div class="empty-text">Koi bhi Instagram username likho aur scan karo</div>
+        <div class="empty-sub">Real data — 30–60 seconds analysis time</div>
+      </div>`;
+  }
+
+  document.getElementById("app").innerHTML = `
+    <header class="header">
+      <div class="header-badge"><div class="pulse"></div>Live — Real Data</div>
+      <h1><span class="h1-line1">INSTA</span><span class="h1-line2">SCAN</span></h1>
+      <p>Instagram Account Intelligence Tool</p>
+    </header>
+
+    <div class="search-wrap">
+      <div class="search-inner">
+        <span class="at-sign">@</span>
+        <input id="inp" type="text" placeholder="instagram username likho..."
+          value="${username}"
+          oninput="onInput(event)"
+          onkeydown="if(event.key==='Enter') analyze()"/>
+        <button class="btn-scan" onclick="analyze()" ${loading || !username.trim() ? "disabled" : ""}>
+          ${loading ? "SCANNING…" : "ANALYZE"}
+        </button>
+      </div>
+      <div class="backend-hint">
+        <div class="pulse"></div>
+        Backend: localhost:5000 — python app.py chal raha hona chahiye
+      </div>
+    </div>
+
+    ${resultsHTML}
+
+    <footer>© 2026 INSTA SCAN — DEVELOPED BY ASAD LEE • PESHAWAR</footer>
+  `;
+
+  const inp = document.getElementById("inp");
+  if (inp) inp.focus();
+}
+
+function onInput(e) {
+  state.username = e.target.value.replace(/[^a-zA-Z0-9._]/g,"");
+}
+function setTab(t) { setState({ activeTab: t }); }
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
