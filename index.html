@@ -139,32 +139,26 @@
             const [username, setUsername] = useState("");
             const [loading, setLoading] = useState(false);
             const [data, setData] = useState(null);
-            const [error, setError] = useState("");
 
-            const analyze = async () => {
-                if (!username.trim()) return;
+            const analyze = () => {
+                if(!username) return;
                 setLoading(true);
-                setError("");
-                setData(null);
-
-                try {
-                    const res = await fetch(`http://localhost:5000/analyze/${username.trim().toLowerCase()}`);
-                    const json = await res.json();
-
-                    if (!res.ok) {
-                        throw new Error(json.error || "Server error");
-                    }
-
-                    setData(json.audit_data);
-                } catch (err) {
-                    setError(err.message || "Unable to fetch real data.");
-                } finally {
+                // Simulation of scanning
+                setTimeout(() => {
+                    setData({
+                        username: username.toLowerCase(),
+                        followers: "15.4K",
+                        engagement: "4.2%",
+                        score: 88,
+                        quality: "High Quality"
+                    });
                     setLoading(false);
-                }
+                }, 1500);
             };
 
             return (
                 <div style={{ maxWidth: "900px", margin: "0 auto", padding: "60px 20px" }}>
+                    
                     {/* Hero Section */}
                     <header style={{ textAlign: 'center', marginBottom: '60px' }}>
                         <h1 className="glitch-text" style={{ fontSize: 'clamp(2.5rem, 8vw, 4rem)', letterSpacing: '4px' }}>INSTA SCAN AI</h1>
@@ -173,7 +167,7 @@
 
                     {/* Search Area */}
                     <div className="tilt-card" style={{ marginBottom: '40px', display: 'flex', gap: '15px', alignItems: 'center' }}>
-                        <i className='bx bx-at' style={{ fontSize: '24px', color: 'var(--primary)' }}></i>
+                        <i class='bx bx-at' style={{ fontSize: '24px', color: 'var(--primary)' }}></i>
                         <input 
                             type="text" 
                             placeholder="Enter Instagram Username..."
@@ -181,76 +175,19 @@
                             onChange={(e) => setUsername(e.target.value)}
                             style={{ flex: 1, background: 'transparent', border: 'none', color: '#fff', fontSize: '18px', fontFamily: 'var(--font-body)' }}
                         />
-                        <button className="cyber-button" onClick={analyze} disabled={loading || !username.trim()}>
+                        <button className="cyber-button" onClick={analyze}>
                             {loading ? "Scanning..." : "Analyze"}
                         </button>
                     </div>
 
-                    {error && (
-                        <div className="tilt-card" style={{ background: 'rgba(255, 23, 68, 0.08)', borderColor: 'rgba(255, 23, 68, 0.25)', color: '#ff6b6b', marginBottom: '20px', textAlign: 'center' }}>
-                            {error}
-                        </div>
-                    )}
-
-                    {loading && (
-                        <div className="tilt-card" style={{ marginBottom: '40px', textAlign: 'center' }}>
-                            <div style={{ width: '40px', height: '40px', margin: '0 auto 20px', border: '4px solid rgba(34, 211, 238, 0.15)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                            <p style={{ color: 'var(--primary)', letterSpacing: '1px' }}>Fetching live audit data...</p>
-                        </div>
-                    )}
-
-                    {data && !loading && (
-                        <div className="tilt-card" style={{ marginBottom: '60px' }}>
-                            <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
-                                <img src={data.profile_pic} alt="Profile" className="profile-img" />
-                                <div style={{ flex: 1 }}>
-                                    <h2 className="glitch-text" style={{ marginBottom: '8px' }}>@{data.username}</h2>
-                                    <p style={{ color: '#94a3b8', marginBottom: '10px' }}>{data.full_name || 'Instagram Profile'}</p>
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '999px', background: 'rgba(34, 211, 238, 0.1)', color: 'var(--primary)', fontSize: '12px' }}>
-                                        {data.is_private ? 'Private Account' : 'Public Account'}
-                                    </span>
-                                </div>
-                                <div style={{ textAlign: 'center' }}>
-                                    <div style={{ fontSize: '32px', fontWeight: 900, color: data.security_metrics.status_color }}>{data.security_metrics.credibility_score}</div>
-                                    <div style={{ fontSize: '10px', color: '#94a3b8', letterSpacing: '2px' }}>CREDIBILITY</div>
-                                </div>
+                    {/* Results Simulation */}
+                    {data && (
+                        <div className="tilt-card" style={{ marginBottom: '60px', textAlign: 'center' }}>
+                            <h2 style={{ color: var('--primary'), marginBottom: '10px' }}>@{data.username}</h2>
+                            <div style={{ display: 'flex', justify: 'center', gap: '40px', marginTop: '20px' }}>
+                                <div><p style={{ fontSize: '24px', fontWeight: 'bold' }}>{data.followers}</p><span style={{ fontSize: '10px', color: '#555' }}>FOLLOWERS</span></div>
+                                <div><p style={{ fontSize: '24px', fontWeight: 'bold', color: '#00e676' }}>{data.score}</p><span style={{ fontSize: '10px', color: '#555' }}>TRUST SCORE</span></div>
                             </div>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '15px', marginTop: '30px' }}>
-                                <div className="tilt-card" style={{ textAlign: 'center' }}>
-                                    <div style={{ fontSize: '20px', fontWeight: 700 }}>{data.stats.followers}</div>
-                                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '6px' }}>FOLLOWERS</div>
-                                </div>
-                                <div className="tilt-card" style={{ textAlign: 'center' }}>
-                                    <div style={{ fontSize: '20px', fontWeight: 700 }}>{data.stats.following}</div>
-                                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '6px' }}>FOLLOWING</div>
-                                </div>
-                                <div className="tilt-card" style={{ textAlign: 'center' }}>
-                                    <div style={{ fontSize: '20px', fontWeight: 700 }}>{data.stats.posts}</div>
-                                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '6px' }}>POSTS</div>
-                                </div>
-                                <div className="tilt-card" style={{ textAlign: 'center' }}>
-                                    <div style={{ fontSize: '20px', fontWeight: 700 }}>{data.stats.engagement_rate}</div>
-                                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '6px' }}>ENGAGEMENT</div>
-                                </div>
-                            </div>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginTop: '25px' }}>
-                                <div className="tilt-card" style={{ textAlign: 'center', padding: '18px' }}>
-                                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#00e676' }}>{data.security_metrics.real_followers}</div>
-                                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>REAL FOLLOWERS</div>
-                                </div>
-                                <div className="tilt-card" style={{ textAlign: 'center', padding: '18px' }}>
-                                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#ffeb3b' }}>{data.security_metrics.bot_detection}</div>
-                                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>BOT RISK</div>
-                                </div>
-                                <div className="tilt-card" style={{ textAlign: 'center', padding: '18px' }}>
-                                    <div style={{ fontSize: '18px', fontWeight: 700, color: data.security_metrics.status_color }}>{data.security_metrics.status}</div>
-                                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>AUDIT VERDICT</div>
-                                </div>
-                            </div>
-
-                            <p style={{ color: '#94a3b8', marginTop: '22px', lineHeight: '1.7' }}>{data.verdict}</p>
                         </div>
                     )}
 
@@ -265,10 +202,10 @@
                                 <div style={{ textAlign: 'center' }}>
                                     <img src="https://i.ibb.co/G3fvMHZY/IMG-4886.jpg" alt="Asad Lee" className="profile-img" />
                                     <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '20px' }}>
-                                        <a href="https://x.com/asadleo416?s=21" target="_blank" className="social-link"><i className='bx bxl-twitter'></i></a>
-                                        <a href="https://www.instagram.com/asadlee24" target="_blank" className="social-link"><i className='bx bxl-instagram'></i></a>
-                                        <a href="https://www.linkedin.com/in/asad-ali-3355273ba" target="_blank" className="social-link"><i className='bx bxl-linkedin'></i></a>
-                                        <a href="https://wa.me/923400194591" target="_blank" className="social-link"><i className='bx bxl-whatsapp'></i></a>
+                                        <a href="https://x.com/asadleo416?s=21" target="_blank" className="social-link"><i class='bx bxl-twitter'></i></a>
+                                        <a href="https://www.instagram.com/asadlee24" target="_blank" className="social-link"><i class='bx bxl-instagram'></i></a>
+                                        <a href="https://www.linkedin.com/in/asad-ali-3355273ba" target="_blank" className="social-link"><i class='bx bxl-linkedin'></i></a>
+                                        <a href="https://wa.me/923400194591" target="_blank" className="social-link"><i class='bx bxl-whatsapp'></i></a>
                                     </div>
                                 </div>
 
@@ -284,6 +221,14 @@
                                         <span className="skill-badge">React & Next.js</span>
                                         <span className="skill-badge">Web3 / DeFi</span>
                                         <span className="skill-badge">Shopify Expert</span>
+                                    </div>
+
+                                    {/* Project Links */}
+                                    <h4 style={{ fontSize: '12px', color: 'var(--primary)', letterSpacing: '2px', marginBottom: '10px' }}>FEATURED PROJECTS</h4>
+                                    <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                                        <a href="https://mdkelectronics.com" target="_blank" style={{ color: '#fff', textDecoration: 'none', fontSize: '14px', borderBottom: '1px solid #333' }}>MDK Electronics</a>
+                                        <a href="https://horia-electronics.myshopify.com/" target="_blank" style={{ color: '#fff', textDecoration: 'none', fontSize: '14px', borderBottom: '1px solid #333' }}>Horia Electronics</a>
+                                        <a href="https://asad-lee-portfolio.vercel.app/" target="_blank" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '14px', fontWeight: 'bold' }}>View Full Portfolio →</a>
                                     </div>
                                 </div>
                             </div>
